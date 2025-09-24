@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from "axios";
 import {
   Box,
   Card,
@@ -39,8 +40,6 @@ import {
   Tooltip,
   FormControlLabel,
   Switch,
-  DatePicker,
-  TimePicker,
   TextareaAutosize,
   Stepper,
   Step,
@@ -48,6 +47,7 @@ import {
   StepContent,
   Autocomplete,
 } from '@mui/material'; 
+import { DatePicker, TimePicker } from '@mui/x-date-pickers';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
@@ -56,7 +56,6 @@ import {
   IconFilter,
   IconDownload,
   IconUser,
-  IconClock,
   IconMapPin,
   IconCheck,
   IconX,
@@ -78,9 +77,9 @@ import {
   IconVideo,
   IconLocation,
   IconBuilding,
-  IconTime,
   IconRepeat,
 } from '@tabler/icons-react';
+import { IconClock } from '@tabler/icons-react';
 import PageContainer from 'src/components/container/PageContainer';
 import { useAuth } from '../../context/AuthContext';
 
@@ -417,9 +416,26 @@ const Appointments: React.FC = () => {
     },
   ];
 
+  // useEffect(() => {
+  //   setAppointments(mockAppointments);
+  //   setFilteredAppointments(mockAppointments);
+  // }, []);
+
   useEffect(() => {
-    setAppointments(mockAppointments);
-    setFilteredAppointments(mockAppointments);
+    const fetchAppointments = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        const res = await axios.get('http://localhost:3001/api/appointments', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setAppointments(res.data);
+        setFilteredAppointments(res.data);
+      } catch (error) {
+        console.error('Failed to fetch appointments:', error);
+      }
+    };
+
+    fetchAppointments();
   }, []);
 
   useEffect(() => {
@@ -476,43 +492,47 @@ const Appointments: React.FC = () => {
     setPage(0);
   }, [appointments, searchTerm, filters]);
 
-  const handleCreateAppointment = () => {
-    const appointment: Appointment = {
-      id: `apt_${Date.now()}`,
-      ...(newAppointment as Appointment),
-      organizer: {
-        id: user?.id || 'current_user',
-        name: user?.name || 'Current User',
-        email: user?.email || 'user@school.edu',
-        department: user?.department || 'Administration',
-      },
-      status: 'scheduled',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
 
-    setAppointments((prev) => [...prev, appointment]);
-    setNewAppointment({
-      title: '',
-      description: '',
-      type: 'meeting',
-      priority: 'medium',
-      startTime: new Date(),
-      endTime: new Date(Date.now() + 60 * 60 * 1000),
-      location: { type: 'room', name: '' },
-      attendees: [],
-      visitors: [],
-      reminders: [{ time: 15, method: 'email' }],
-      isPrivate: false,
-      requiresApproval: false,
-      recurrence: { type: 'none', interval: 1 },
-      resources: [],
-    });
-    setShowCreateDialog(false);
-    setCurrentStep(0);
-    setSnackbar({ open: true, message: 'Appointment created successfully', severity: 'success' });
+  const handleCreateAppointment = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+
+      const res = await fetch('http://localhost:3001/api/appointments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(newAppointment),
+      });
+
+      if (!res.ok) throw new Error('Failed to create appointment');
+
+      const created = await res.json();
+      setAppointments((prev) => [...prev, created]);
+      setSnackbar({ open: true, message: 'Appointment created successfully', severity: 'success' });
+
+      // Reset form & step
+      setNewAppointment({
+        title: '',
+        description: '',
+        type: 'meeting',
+        priority: 'low',
+        startTime: null,
+        endTime: null,
+        //recurrence: { type: 'none' },
+        location: { type: 'room', name: '' },
+        isPrivate: false,
+        requiresApproval: false,
+      });
+      setCurrentStep(0); // Reset to "Basic Information"
+      setShowCreateDialog(false);
+    } catch (error: any) {
+      setSnackbar({ open: true, message: error.message, severity: 'error' });
+    }
   };
-
+  
+  
   const handleCancelAppointment = (id: string) => {
     setAppointments((prev) =>
       prev.map((appointment) =>
@@ -955,7 +975,7 @@ const Appointments: React.FC = () => {
                         </Typography>
                         {appointment.recurrence?.type !== 'none' && (
                           <Chip
-                            label={<IconRepeat xs={12} />}
+                            label={<IconRepeat size={12} />}
                            
                             variant="outlined"
                             sx={{ ml: 1 }}
@@ -981,11 +1001,11 @@ const Appointments: React.FC = () => {
                     <TableCell>
                       <Box>
                         <Typography variant="body2">
-                          <IconCalendar xs={16} style={{ marginRight: 4 }} />
+                          <IconCalendar size={16} style={{ marginRight: 4 }} />
                           {appointment.startTime.toLocaleDateString()}
                         </Typography>
                         <Typography variant="body2">
-                          <IconClock xs={16} style={{ marginRight: 4 }} />
+                          <IconClock size={16} style={{ marginRight: 4 }} />
                           {appointment.startTime.toLocaleTimeString()} -{' '}
                           {appointment.endTime.toLocaleTimeString()}
                         </Typography>
@@ -998,9 +1018,9 @@ const Appointments: React.FC = () => {
                       <Box>
                         <Typography variant="body2">
                           {appointment.location.type === 'virtual' ? (
-                            <IconVideo xs={16} />
+                            <IconVideo size={16} />
                           ) : (
-                            <IconMapPin xs={16} />
+                            <IconMapPin size={16} />
                           )}
                           <span style={{ marginLeft: 4 }}>{appointment.location.name}</span>
                         </Typography>
@@ -1150,31 +1170,36 @@ const Appointments: React.FC = () => {
               Today's Schedule
             </Typography>
             <List>
-              {appointments
-                .filter((apt) => apt.startTime.toDateString() === new Date().toDateString())
-                .sort((a, b) => a.startTime.getTime() - b.startTime.getTime())
-                .slice(0, 6)
-                .map((appointment) => (
-                  <ListItem key={appointment.id}>
-                    <ListItemAvatar>
-                      <Avatar>
-                        <IconClock />
-                      </Avatar>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={appointment.title}
-                      secondary={`${appointment.startTime.toLocaleTimeString()} - ${
-                        appointment.organizer.name
-                      }`}
-                    />
-                    <Chip
-                      label={appointment.status}
-                      color={getStatusColor(appointment.status) as any}
-                     
-                    />
-                  </ListItem>
-                ))}
-            </List>
+            {appointments
+              .filter(
+                (apt) =>
+                  new Date(apt.startTime).toDateString() === new Date().toDateString()
+              )
+              .sort(
+                (a, b) =>
+                  new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+              )
+              .slice(0, 6)
+              .map((appointment) => (
+                <ListItem key={appointment._id}>
+                  <ListItemAvatar>
+                    <Avatar>
+                      <IconClock />
+                    </Avatar>
+                  </ListItemAvatar>
+                  <ListItemText
+                    primary={appointment.title}
+                    secondary={`${new Date(appointment.startTime).toLocaleTimeString()} - ${
+                      appointment.organizer?.name || 'No organizer'
+                    }`}
+                  />
+                  <Chip
+                    label={appointment.status}
+                    color={getStatusColor(appointment.status) as any}
+                  />
+                </ListItem>
+              ))}
+          </List>
           </CardContent>
         </Card>
       </Grid>

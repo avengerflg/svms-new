@@ -60,12 +60,12 @@ import {
   IconClock,
   IconUserCheck,
   IconUserX,
-  IconMoreVertical,
   IconEye,
   IconBuilding,
   IconId,
   IconBriefcase,
 } from '@tabler/icons-react';
+import { IconDotsVertical } from '@tabler/icons-react';
 import PageContainer from 'src/components/container/PageContainer';
 import { useAuth } from '../../context/AuthContext';
 

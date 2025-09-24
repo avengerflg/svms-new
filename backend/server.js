@@ -18,6 +18,7 @@ const dashboardRoutes = require("./routes/dashboard");
 // const adminRoutes = require('./routes/admin');
  const visitorRoutes = require('./routes/visitor');
 // const securityRoutes = require('./routes/security');
+const appointmentRoutes = require('./routes/appointments');
 
 // Initialize Express app
 const app = express();
@@ -64,6 +65,7 @@ app.use("/api/dashboard", dashboardRoutes);
 // app.use('/api/admin', adminRoutes);
 app.use('/api/visitors', visitorRoutes);
 // app.use('/api/security', securityRoutes);
+app.use('/api/appointments', appointmentRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {

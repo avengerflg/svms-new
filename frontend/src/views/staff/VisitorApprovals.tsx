@@ -37,6 +37,9 @@ import {
   Snackbar,
   Badge,
   Tooltip,
+} from '@mui/material'; 
+
+import {
   Timeline,
   TimelineItem,
   TimelineSeparator,
@@ -44,7 +47,7 @@ import {
   TimelineContent,
   TimelineDot,
   TimelineOppositeContent,
-} from '@mui/material'; 
+} from '@mui/lab';
 import {
   IconSearch,
   IconFilter,
@@ -304,7 +307,7 @@ const VisitorApprovals: React.FC = () => {
                 ...approval.approvalHistory,
                 {
                   action: 'approved',
-                  by: user?.name || 'Unknown',
+                  by: user ? `${user.firstName} ${user.lastName}` : 'Unknown',
                   date: new Date(),
                   comments,
                 },
@@ -327,7 +330,7 @@ const VisitorApprovals: React.FC = () => {
                 ...approval.approvalHistory,
                 {
                   action: 'rejected',
-                  by: user?.name || 'Unknown',
+                  by: user ? `${user.firstName} ${user.lastName}` : 'Unknown',
                   date: new Date(),
                   comments,
                 },
@@ -521,15 +524,15 @@ const VisitorApprovals: React.FC = () => {
                     <TableCell>
                       <Box>
                         <Typography variant="body2">
-                          <IconCalendar xs={16} style={{ marginRight: 4 }} />
+                          <IconCalendar size={16} style={{ marginRight: 4 }} />
                           {approval.visitDate.toLocaleDateString()}
                         </Typography>
                         <Typography variant="body2">
-                          <IconClock xs={16} style={{ marginRight: 4 }} />
+                          <IconClock size={16} style={{ marginRight: 4 }} />
                           {approval.visitTime} ({approval.duration})
                         </Typography>
                         <Typography variant="caption" color="textSecondary">
-                          <IconMapPin xs={14} style={{ marginRight: 4 }} />
+                          <IconMapPin size={14} style={{ marginRight: 4 }} />
                           {approval.location}
                         </Typography>
                       </Box>
