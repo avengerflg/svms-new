@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const mongoosePaginate = require("mongoose-paginate-v2");
 
 const visitorSchema = new mongoose.Schema(
   {
@@ -24,7 +25,13 @@ const visitorSchema = new mongoose.Schema(
     },
     idType: {
       type: String,
-      enum: ["passport", "drivers-license", "national-id", "employee-id", "student-id"],
+      enum: [
+        "passport",
+        "drivers-license",
+        "national-id",
+        "employee-id",
+        "student-id",
+      ],
       required: true,
     },
     idNumber: {
@@ -32,19 +39,19 @@ const visitorSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    visitorCategory:{
-    type: String,
-    enum: [
-      "parent",
-      "contractor",
-      "vendor",
-      "guest",
-      "alumni",
-      "official",
-      "media",
-      "other",
-    ],
-    required: true,
+    visitorCategory: {
+      type: String,
+      enum: [
+        "parent",
+        "contractor",
+        "vendor",
+        "guest",
+        "alumni",
+        "official",
+        "media",
+        "other",
+      ],
+      required: true,
     },
     purposeOfVisit: {
       type: String,
@@ -58,15 +65,15 @@ const visitorSchema = new mongoose.Schema(
     department: {
       type: String,
       enum: [
-      "administration",
-      "academics",
-      "student-affairs",
-      "facilities",
-      "it",
-      "library",
-      "security",
-      "cafeteria",
-    ],
+        "administration",
+        "academics",
+        "student-affairs",
+        "facilities",
+        "it",
+        "library",
+        "security",
+        "cafeteria",
+      ],
       required: true,
     },
     expectedDuration: {
@@ -107,11 +114,47 @@ const visitorSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    status: {
+      type: String,
+      enum: [
+        "pending",
+        "approved",
+        "checked-in",
+        "checked-out",
+        "cancelled",
+        "rejected",
+      ],
+      default: "pending",
+    },
+    checkInTime: {
+      type: Date,
+    },
+    checkOutTime: {
+      type: Date,
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    approvalDate: {
+      type: Date,
+    },
+    rejectionReason: {
+      type: String,
+      trim: true,
+    },
+    school: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "School",
+    },
   },
   {
     timestamps: true,
   }
 );
+
+// Add pagination plugin
+visitorSchema.plugin(mongoosePaginate);
 
 // Generate badge number
 visitorSchema.pre("save", async function (next) {

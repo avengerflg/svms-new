@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from "axios";
+import { visitorAPI } from '../../services/api';
 import {
   Box,
   Card,
@@ -31,7 +31,7 @@ import {
   Checkbox,
   FormGroup,
   FormHelperText,
-} from '@mui/material'; 
+} from '@mui/material';
 import {
   IconCamera,
   IconUpload,
@@ -52,8 +52,6 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import PageContainer from 'src/components/container/PageContainer';
 import { useAuth } from '../../context/AuthContext';
-
-
 
 interface VisitorFormData {
   firstName: string;
@@ -187,7 +185,6 @@ const PreRegistration: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-
   const handleSubmit = async () => {
     if (!validateCurrentStep()) return;
 
@@ -211,22 +208,16 @@ const PreRegistration: React.FC = () => {
         agreement: formData.agreement,
       };
 
-      const response = await axios.post(
-        "http://localhost:3001/api/visitors",
-        payload,
-        { headers: { "Content-Type": "application/json" } }
-      );
+      const response = await visitorAPI.createVisitor(payload);
 
-      if (response.data.success) {
-        console.log(response.data);
-        setGeneratedQR(response.data.qrCode);
+      if (response.visitor) {
+        console.log('Visitor created:', response.visitor);
+        setGeneratedQR(response.qrCode || '');
         setSubmitDialogOpen(true);
       }
     } catch (error: any) {
-      console.error("Error submitting visitor:", error);
-      alert(
-        error.response?.data?.message || "Something went wrong. Please try again."
-      );
+      console.error('Error submitting visitor:', error);
+      alert(error.response?.data?.message || 'Something went wrong. Please try again.');
     }
   };
   const renderStepContent = (step: number) => {
@@ -293,7 +284,7 @@ const PreRegistration: React.FC = () => {
                   <MenuItem value="employee-id">Employee ID</MenuItem>
                   <MenuItem value="student-id">Student ID</MenuItem>
                 </Select>
-                 {errors.idType && <FormHelperText>{errors.idType}</FormHelperText>}
+                {errors.idType && <FormHelperText>{errors.idType}</FormHelperText>}
               </FormControl>
             </Grid>
             <Grid item xs={12} md={6}>
@@ -330,7 +321,9 @@ const PreRegistration: React.FC = () => {
                   <MenuItem value="media">Media Representative</MenuItem>
                   <MenuItem value="other">Other</MenuItem>
                 </Select>
-                {errors.visitorCategory && <FormHelperText>{errors.visitorCategory}</FormHelperText>}
+                {errors.visitorCategory && (
+                  <FormHelperText>{errors.visitorCategory}</FormHelperText>
+                )}
               </FormControl>
             </Grid>
             <Grid item xs={12}>
@@ -459,7 +452,7 @@ const PreRegistration: React.FC = () => {
                   </Box>
                 ) : (
                   <Box>
-                    <IconCamera xs={60} style={{ color: '#ccc', marginBottom: 16 }} />
+                    <IconCamera size={60} style={{ color: '#ccc', marginBottom: 16 }} />
                     <Typography variant="h6" gutterBottom>
                       Upload Your Photo
                     </Typography>
@@ -718,7 +711,7 @@ const PreRegistration: React.FC = () => {
                 Your QR Code
               </Typography>
               <Paper sx={{ p: 3, display: 'inline-block' }}>
-                <IconQrcode xs={120} />
+                <IconQrcode size={120} />
                 <Typography variant="caption" display="block" mt={1}>
                   QR Code: {generatedQR}
                 </Typography>

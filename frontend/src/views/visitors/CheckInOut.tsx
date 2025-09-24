@@ -28,7 +28,7 @@ import {
   IconButton,
   Paper,
   Divider,
-} from '@mui/material'; 
+} from '@mui/material';
 import {
   IconQrcode,
   IconCamera,
@@ -43,6 +43,7 @@ import {
 } from '@tabler/icons-react';
 import PageContainer from 'src/components/container/PageContainer';
 import { useAuth } from '../../context/AuthContext';
+import { visitorAPI } from '../../services/api';
 
 interface Visitor {
   _id: string;
@@ -55,12 +56,19 @@ interface Visitor {
   photo?: string;
   purposeOfVisit: string;
   personToMeet: string;
-  status: 'checked-in' | 'checked-out' | 'pending' | 'approved' | 'rejected';
+  department: string;
+  status: 'pending' | 'approved' | 'checked-in' | 'checked-out' | 'rejected';
   checkInTime?: Date;
   checkOutTime?: Date;
   expectedDuration?: number;
   visitorCategory: string;
   school: string;
+  badgeNumber?: string;
+  approvalBy?: string;
+  approvalDate?: Date;
+  rejectionReason?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const CheckInOut: React.FC = () => {
@@ -75,7 +83,29 @@ const CheckInOut: React.FC = () => {
   const [pendingVisitors, setPendingVisitors] = useState<Visitor[]>([]);
   const [isScanning, setIsScanning] = useState(false);
 
-  // Mock data for currently checked-in visitors
+  // Fetch visitors data
+  const fetchVisitors = async () => {
+    try {
+      const response = await visitorAPI.getAllVisitors({
+        page: 1,
+        limit: 100,
+      });
+
+      const checkedInVisitors = response.visitors?.filter((v) => v.status === 'checked-in') || [];
+      const approvedVisitors = response.visitors?.filter((v) => v.status === 'approved') || [];
+
+      setCurrentlyInVisitors(checkedInVisitors);
+      setPendingVisitors(approvedVisitors);
+    } catch (error) {
+      console.error('Error fetching visitors:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchVisitors();
+  }, []);
+
+  // Mock data kept for fallback - will be replaced by API data
   const mockCurrentVisitors: Visitor[] = [
     {
       _id: '1',
@@ -87,11 +117,14 @@ const CheckInOut: React.FC = () => {
       idNumber: 'DL123456789',
       purposeOfVisit: 'Parent Meeting',
       personToMeet: 'Mrs. Smith',
+      department: 'administration',
       status: 'checked-in',
       checkInTime: new Date('2024-03-15T09:30:00'),
       expectedDuration: 60,
       visitorCategory: 'Parent',
       school: 'Main Campus',
+      createdAt: new Date(),
+      updatedAt: new Date(),
     },
     {
       _id: '4',
@@ -103,11 +136,14 @@ const CheckInOut: React.FC = () => {
       idNumber: 'ID444555666',
       purposeOfVisit: 'Equipment Installation',
       personToMeet: 'IT Manager',
+      department: 'information-technology',
       status: 'checked-in',
       checkInTime: new Date('2024-03-15T10:15:00'),
       expectedDuration: 180,
       visitorCategory: 'Vendor',
       school: 'Main Campus',
+      createdAt: new Date(),
+      updatedAt: new Date(),
     },
   ];
 
@@ -123,17 +159,15 @@ const CheckInOut: React.FC = () => {
       idNumber: 'ID987654321',
       purposeOfVisit: 'Maintenance Work',
       personToMeet: 'Facilities Manager',
-      status: 'pending',
+      department: 'facilities',
+      status: 'approved',
       expectedDuration: 120,
       visitorCategory: 'Contractor',
       school: 'Main Campus',
+      createdAt: new Date(),
+      updatedAt: new Date(),
     },
   ];
-
-  useEffect(() => {
-    setCurrentlyInVisitors(mockCurrentVisitors);
-    setPendingVisitors(mockPendingVisitors);
-  }, []);
 
   const handleQRScan = () => {
     setIsScanning(true);
@@ -152,31 +186,37 @@ const CheckInOut: React.FC = () => {
     }, 2000);
   };
 
-  const handleCheckIn = (visitor: Visitor) => {
-    // Update visitor status and move to checked-in list
-    const updatedVisitor = {
-      ...visitor,
-      status: 'checked-in' as const,
-      checkInTime: new Date(),
-    };
+  const handleCheckIn = async (visitor: Visitor) => {
+    try {
+      const response = await visitorAPI.checkIn(visitor._id);
 
-    setCurrentlyInVisitors((prev) => [...prev, updatedVisitor]);
-    setPendingVisitors((prev) => prev.filter((v) => v._id !== visitor._id));
-    setCheckInDialogOpen(false);
-    setSelectedVisitor(null);
+      // Update local state
+      setCurrentlyInVisitors((prev) => [...prev, response.visitor]);
+      setPendingVisitors((prev) => prev.filter((v) => v._id !== visitor._id));
+      setCheckInDialogOpen(false);
+      setSelectedVisitor(null);
+
+      // Refresh data
+      fetchVisitors();
+    } catch (error) {
+      console.error('Error checking in visitor:', error);
+    }
   };
 
-  const handleCheckOut = (visitor: Visitor) => {
-    // Update visitor status and remove from checked-in list
-    const updatedVisitor = {
-      ...visitor,
-      status: 'checked-out' as const,
-      checkOutTime: new Date(),
-    };
+  const handleCheckOut = async (visitor: Visitor) => {
+    try {
+      const response = await visitorAPI.checkOut(visitor._id);
 
-    setCurrentlyInVisitors((prev) => prev.filter((v) => v._id !== visitor._id));
-    setCheckOutDialogOpen(false);
-    setSelectedVisitor(null);
+      // Update local state
+      setCurrentlyInVisitors((prev) => prev.filter((v) => v._id !== visitor._id));
+      setCheckOutDialogOpen(false);
+      setSelectedVisitor(null);
+
+      // Refresh data
+      fetchVisitors();
+    } catch (error) {
+      console.error('Error checking out visitor:', error);
+    }
   };
 
   const openCheckOutDialog = (visitor: Visitor) => {
@@ -282,18 +322,13 @@ const CheckInOut: React.FC = () => {
                                   <Typography variant="body2">
                                     Expected Duration: {visitor.expectedDuration} minutes
                                   </Typography>
-                                  <Chip
-                                    label={visitor.visitorCategory}
-                                   
-                                    sx={{ mt: 1 }}
-                                  />
+                                  <Chip label={visitor.visitorCategory} sx={{ mt: 1 }} />
                                 </Box>
                               }
                             />
                             <Box>
                               <Button
                                 variant="contained"
-                               
                                 startIcon={<IconUserCheck />}
                                 onClick={() => {
                                   setSelectedVisitor(visitor);
@@ -359,7 +394,6 @@ const CheckInOut: React.FC = () => {
                                     <Chip
                                       label="Overstaying"
                                       color="warning"
-                                     
                                       icon={<IconAlertTriangle />}
                                     />
                                   )}
@@ -392,7 +426,6 @@ const CheckInOut: React.FC = () => {
                             <Box>
                               <Button
                                 variant="contained"
-                               
                                 startIcon={<IconUserX />}
                                 onClick={() => openCheckOutDialog(visitor)}
                                 color="primary"
@@ -419,7 +452,7 @@ const CheckInOut: React.FC = () => {
             <Box textAlign="center" py={4}>
               {isScanning ? (
                 <Box>
-                  <IconQrcode xs={100} />
+                  <IconQrcode size={100} />
                   <Typography variant="h6" mt={2}>
                     Scanning QR Code...
                   </Typography>
@@ -429,7 +462,7 @@ const CheckInOut: React.FC = () => {
                 </Box>
               ) : (
                 <Box>
-                  <IconQrcode xs={100} />
+                  <IconQrcode size={100} />
                   <Typography variant="h6" mt={2}>
                     Position QR Code in Frame
                   </Typography>

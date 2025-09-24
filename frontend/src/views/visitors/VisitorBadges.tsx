@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { visitorAPI } from '../../services/api';
 import {
   Box,
   Card,
@@ -137,9 +138,25 @@ const VisitorBadges: React.FC = () => {
     },
   ];
 
-  React.useEffect(() => {
-    setVisitors(mockVisitors);
+  useEffect(() => {
+    fetchVisitors();
   }, []);
+
+  const fetchVisitors = async () => {
+    try {
+      const response = await visitorAPI.getAllVisitors({
+        page: 1,
+        limit: 100,
+        status: 'checked-in,approved', // Get visitors who can have badges
+      });
+
+      setVisitors(response.visitors || []);
+    } catch (error) {
+      console.error('Error fetching visitors:', error);
+      // Fallback to mock data if API fails
+      setVisitors(mockVisitors);
+    }
+  };
 
   const filteredVisitors = visitors.filter((visitor) => {
     const matchesSearch =
@@ -295,7 +312,7 @@ const VisitorBadges: React.FC = () => {
             textAlign: 'center',
           }}
         >
-          <IconQrcode xs={60} />
+          <IconQrcode size={60} />
           <Typography variant="caption" fontSize="8px" display="block">
             {visitor.qrCode}
           </Typography>
@@ -406,7 +423,6 @@ const VisitorBadges: React.FC = () => {
                             <Chip
                               label={visitor.status.replace('-', ' ').toUpperCase()}
                               color={getStatusChipColor(visitor.status) as any}
-                             
                             />
                             <Chip label={visitor.visitorCategory} variant="outlined" />
                           </Box>
@@ -427,21 +443,15 @@ const VisitorBadges: React.FC = () => {
                       />
                       <Box display="flex" gap={1}>
                         <IconButton
-                         
                           onClick={() => handleGenerateBadge(visitor)}
                           title="Generate Badge"
                         >
                           <IconId />
                         </IconButton>
-                        <IconButton
-                         
-                          onClick={() => handleGenerateBadge(visitor)}
-                          title="View Badge"
-                        >
+                        <IconButton onClick={() => handleGenerateBadge(visitor)} title="View Badge">
                           <IconEye />
                         </IconButton>
                         <IconButton
-                         
                           onClick={() => {
                             setSelectedVisitor(visitor);
                             setPrintDialogOpen(true);

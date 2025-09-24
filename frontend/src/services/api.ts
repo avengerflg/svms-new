@@ -136,4 +136,97 @@ export const dashboardAPI = {
   },
 };
 
+// Visitor API functions
+export const visitorAPI = {
+  // Create a new visitor
+  createVisitor: async (visitorData: {
+    firstName: string;
+    lastName: string;
+    email?: string;
+    phone: string;
+    idType: string;
+    idNumber: string;
+    visitorCategory: string;
+    purposeOfVisit?: string;
+    personToMeet: string;
+    department: string;
+    expectedDuration?: number;
+    visitDate?: string;
+    vehicleNumber?: string;
+    specialRequirements?: string;
+    photo?: string;
+    emergencyContact?: string;
+    emergencyPhone?: string;
+  }) => {
+    const response = await api.post('/visitors', visitorData);
+    return response.data;
+  },
+
+  // Get all visitors
+  getAllVisitors: async (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    category?: string;
+    status?: string;
+    department?: string;
+  }) => {
+    const response = await api.get('/visitors', { params });
+    return response.data;
+  },
+
+  // Get visitor by ID
+  getVisitorById: async (id: string) => {
+    const response = await api.get(`/visitors/${id}`);
+    return response.data;
+  },
+
+  // Update visitor
+  updateVisitor: async (id: string, updateData: any) => {
+    const response = await api.put(`/visitors/${id}`, updateData);
+    return response.data;
+  },
+
+  // Delete visitor
+  deleteVisitor: async (id: string) => {
+    const response = await api.delete(`/visitors/${id}`);
+    return response.data;
+  },
+
+  // Check in visitor
+  checkIn: async (id: string) => {
+    const response = await api.post(`/visitors/${id}/checkin`);
+    return response.data;
+  },
+
+  // Check out visitor
+  checkOut: async (id: string) => {
+    const response = await api.post(`/visitors/${id}/checkout`);
+    return response.data;
+  },
+
+  // Approve visitor
+  approveVisitor: async (id: string) => {
+    const response = await api.post(`/visitors/${id}/approve`);
+    return response.data;
+  },
+
+  // Reject visitor
+  rejectVisitor: async (id: string, rejectionReason: string) => {
+    const response = await api.post(`/visitors/${id}/reject`, { rejectionReason });
+    return response.data;
+  },
+
+  // Get visitor history
+  getVisitorHistory: async (params?: {
+    startDate?: string;
+    endDate?: string;
+    visitorId?: string;
+    department?: string;
+  }) => {
+    const response = await api.get('/visitor/history', { params });
+    return response.data;
+  },
+};
+
 export default api;

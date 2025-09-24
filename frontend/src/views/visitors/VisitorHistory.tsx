@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { visitorAPI } from '../../services/api';
 import {
   Box,
   Card,
@@ -34,7 +35,7 @@ import {
   ListItemText,
   ListItemAvatar,
   Divider,
-} from '@mui/material'; 
+} from '@mui/material';
 import {
   IconSearch,
   IconFilter,
@@ -189,10 +190,42 @@ const VisitorHistory: React.FC = () => {
   ];
 
   useEffect(() => {
-    setHistory(mockHistory);
-    setFilteredHistory(mockHistory);
-    setTotalPages(Math.ceil(mockHistory.length / itemsPerPage));
+    fetchVisitorHistory();
   }, []);
+
+  const fetchVisitorHistory = async () => {
+    try {
+      const response = await visitorAPI.getAllVisitors({
+        page: 1,
+        limit: 1000,
+        status: 'checked-out', // Only get completed visits
+      });
+
+      const historyData =
+        response.visitors?.map((visitor) => ({
+          ...visitor,
+          status: visitor.checkOutTime ? 'completed' : ('incomplete' as any),
+          actualDuration:
+            visitor.checkInTime && visitor.checkOutTime
+              ? Math.round(
+                  (new Date(visitor.checkOutTime).getTime() -
+                    new Date(visitor.checkInTime).getTime()) /
+                    (1000 * 60),
+                )
+              : undefined,
+        })) || [];
+
+      setHistory(historyData);
+      setFilteredHistory(historyData);
+      setTotalPages(Math.ceil(historyData.length / itemsPerPage));
+    } catch (error) {
+      console.error('Error fetching visitor history:', error);
+      // Fallback to mock data if API fails
+      setHistory(mockHistory);
+      setFilteredHistory(mockHistory);
+      setTotalPages(Math.ceil(mockHistory.length / itemsPerPage));
+    }
+  };
 
   useEffect(() => {
     let filtered = history;
@@ -507,7 +540,6 @@ const VisitorHistory: React.FC = () => {
                         <Chip
                           label={visit.status.toUpperCase()}
                           color={getStatusColor(visit.status) as any}
-                         
                         />
                       </TableCell>
                       <TableCell>
@@ -588,7 +620,6 @@ const VisitorHistory: React.FC = () => {
                     <Chip
                       label={selectedVisit.status.toUpperCase()}
                       color={getStatusColor(selectedVisit.status) as any}
-                     
                       sx={{ ml: 1 }}
                     />
                   </Typography>

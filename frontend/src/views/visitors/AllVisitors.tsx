@@ -28,7 +28,9 @@ import {
   FormControl,
   InputLabel,
   Select,
-} from '@mui/material'; 
+  Alert,
+  CircularProgress,
+} from '@mui/material';
 import {
   IconSearch,
   IconFilter,
@@ -40,9 +42,13 @@ import {
   IconQrcode,
   IconClock,
   IconMapPin,
+  IconCheck,
+  IconX,
 } from '@tabler/icons-react';
 import PageContainer from 'src/components/container/PageContainer';
 import { useAuth } from '../../context/AuthContext';
+import { visitorAPI } from '../../services/api';
+import { toast } from 'react-toastify';
 
 interface Visitor {
   _id: string;
@@ -53,14 +59,25 @@ interface Visitor {
   idType: string;
   idNumber: string;
   photo?: string;
-  purposeOfVisit: string;
+  purposeOfVisit?: string;
   personToMeet: string;
-  status: 'checked-in' | 'checked-out' | 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'checked-in' | 'checked-out' | 'rejected' | 'cancelled';
   checkInTime?: Date;
   checkOutTime?: Date;
   expectedDuration?: number;
   visitorCategory: string;
-  school: string;
+  department: string;
+  vehicleNumber?: string;
+  specialRequirements?: string;
+  emergencyContact?: string;
+  emergencyPhone?: string;
+  qrCode?: string;
+  badgeNumber?: string;
+  isBlacklisted?: boolean;
+  approvedBy?: any;
+  approvalDate?: Date;
+  rejectionReason?: string;
+  school?: any;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -90,109 +107,115 @@ function TabPanel(props: TabPanelProps) {
 const AllVisitors: React.FC = () => {
   const { user } = useAuth();
   const [visitors, setVisitors] = useState<Visitor[]>([]);
-  const [filteredVisitors, setFilteredVisitors] = useState<Visitor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
   const [selectedVisitor, setSelectedVisitor] = useState<Visitor | null>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [tabValue, setTabValue] = useState(0);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  // Mock data - replace with actual API call
-  const mockVisitors: Visitor[] = [
-    {
-      _id: '1',
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'john.doe@example.com',
-      phone: '+1234567890',
-      idType: 'Driver License',
-      idNumber: 'DL123456789',
-      purposeOfVisit: 'Parent Meeting',
-      personToMeet: 'Mrs. Smith',
-      status: 'checked-in',
-      checkInTime: new Date('2024-03-15T09:30:00'),
-      expectedDuration: 60,
-      visitorCategory: 'Parent',
-      school: 'Main Campus',
-      createdAt: new Date('2024-03-15T09:00:00'),
-      updatedAt: new Date('2024-03-15T09:30:00'),
-    },
-    {
-      _id: '2',
-      firstName: 'Jane',
-      lastName: 'Smith',
-      email: 'jane.smith@contractor.com',
-      phone: '+1987654321',
-      idType: 'National ID',
-      idNumber: 'ID987654321',
-      purposeOfVisit: 'Maintenance Work',
-      personToMeet: 'Facilities Manager',
-      status: 'pending',
-      expectedDuration: 120,
-      visitorCategory: 'Contractor',
-      school: 'Main Campus',
-      createdAt: new Date('2024-03-15T08:45:00'),
-      updatedAt: new Date('2024-03-15T08:45:00'),
-    },
-    {
-      _id: '3',
-      firstName: 'Mike',
-      lastName: 'Johnson',
-      email: 'mike.johnson@vendor.com',
-      phone: '+1555666777',
-      idType: 'Passport',
-      idNumber: 'PP123456789',
-      purposeOfVisit: 'Equipment Delivery',
-      personToMeet: 'IT Department',
-      status: 'checked-out',
-      checkInTime: new Date('2024-03-15T08:00:00'),
-      checkOutTime: new Date('2024-03-15T10:30:00'),
-      expectedDuration: 90,
-      visitorCategory: 'Vendor',
-      school: 'Main Campus',
-      createdAt: new Date('2024-03-15T07:30:00'),
-      updatedAt: new Date('2024-03-15T10:30:00'),
-    },
-  ];
+  // Fetch visitors from API
+  const fetchVisitors = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setVisitors(mockVisitors);
-      setFilteredVisitors(mockVisitors);
+      const params: any = {
+        page,
+        limit: 10,
+      };
+
+      if (searchTerm) params.search = searchTerm;
+      if (statusFilter !== 'all') params.status = statusFilter;
+      if (categoryFilter !== 'all') params.category = categoryFilter;
+      if (departmentFilter !== 'all') params.department = departmentFilter;
+
+      const response = await visitorAPI.getAllVisitors(params);
+
+      if (response.success) {
+        setVisitors(response.data);
+        setTotalPages(response.pagination?.pages || 1);
+      } else {
+        setError(response.message || 'Failed to fetch visitors');
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred while fetching visitors');
+      toast.error('Failed to load visitors');
+    } finally {
       setLoading(false);
-    }, 1000);
-  }, []);
+    }
+  };
 
   useEffect(() => {
-    let filtered = visitors;
+    fetchVisitors();
+  }, [page, searchTerm, statusFilter, categoryFilter, departmentFilter]);
 
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (visitor) =>
-          visitor.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          visitor.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          visitor.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          visitor.phone.includes(searchTerm) ||
-          visitor.purposeOfVisit.toLowerCase().includes(searchTerm.toLowerCase()),
-      );
+  // Debounce search to avoid too many API calls
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (page === 1) {
+        fetchVisitors();
+      } else {
+        setPage(1); // Reset to first page when search changes
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
+
+  // Handle visitor actions
+  const handleCheckIn = async (visitorId: string) => {
+    try {
+      const response = await visitorAPI.checkIn(visitorId);
+      if (response.success) {
+        toast.success('Visitor checked in successfully');
+        fetchVisitors();
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to check in visitor');
     }
+  };
 
-    // Apply status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter((visitor) => visitor.status === statusFilter);
+  const handleCheckOut = async (visitorId: string) => {
+    try {
+      const response = await visitorAPI.checkOut(visitorId);
+      if (response.success) {
+        toast.success('Visitor checked out successfully');
+        fetchVisitors();
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to check out visitor');
     }
+  };
 
-    // Apply category filter
-    if (categoryFilter !== 'all') {
-      filtered = filtered.filter((visitor) => visitor.visitorCategory === categoryFilter);
+  const handleApprove = async (visitorId: string) => {
+    try {
+      const response = await visitorAPI.approveVisitor(visitorId);
+      if (response.success) {
+        toast.success('Visitor approved successfully');
+        fetchVisitors();
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to approve visitor');
     }
+  };
 
-    setFilteredVisitors(filtered);
-  }, [visitors, searchTerm, statusFilter, categoryFilter]);
+  const handleReject = async (visitorId: string, reason: string) => {
+    try {
+      const response = await visitorAPI.rejectVisitor(visitorId, reason);
+      if (response.success) {
+        toast.success('Visitor rejected successfully');
+        fetchVisitors();
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to reject visitor');
+    }
+  };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -215,7 +238,7 @@ const AllVisitors: React.FC = () => {
     }
   };
 
-  const formatTime = (date: Date | undefined) => {
+  const formatTime = (date?: Date | string) => {
     if (!date) return 'N/A';
     return new Date(date).toLocaleString();
   };
@@ -236,9 +259,24 @@ const AllVisitors: React.FC = () => {
     checkedOut: getVisitorsByStatus('checked-out').length,
   };
 
+  if (loading) {
+    return (
+      <PageContainer title="All Visitors" description="Manage and view all visitors">
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+          <CircularProgress />
+        </Box>
+      </PageContainer>
+    );
+  }
+
   return (
     <PageContainer title="All Visitors" description="Manage and view all visitors">
       <Box>
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
         {/* Header */}
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <Typography variant="h4" component="h1">
@@ -340,7 +378,7 @@ const AllVisitors: React.FC = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12} md={3}>
+              <Grid item xs={12} md={2}>
                 <FormControl fullWidth>
                   <InputLabel>Category</InputLabel>
                   <Select
@@ -349,15 +387,38 @@ const AllVisitors: React.FC = () => {
                     onChange={(e) => setCategoryFilter(e.target.value)}
                   >
                     <MenuItem value="all">All Categories</MenuItem>
-                    <MenuItem value="Parent">Parent</MenuItem>
-                    <MenuItem value="Contractor">Contractor</MenuItem>
-                    <MenuItem value="Vendor">Vendor</MenuItem>
-                    <MenuItem value="Guest">Guest</MenuItem>
-                    <MenuItem value="Alumni">Alumni</MenuItem>
+                    <MenuItem value="parent">Parent</MenuItem>
+                    <MenuItem value="contractor">Contractor</MenuItem>
+                    <MenuItem value="vendor">Vendor</MenuItem>
+                    <MenuItem value="guest">Guest</MenuItem>
+                    <MenuItem value="alumni">Alumni</MenuItem>
+                    <MenuItem value="official">Official</MenuItem>
+                    <MenuItem value="media">Media</MenuItem>
+                    <MenuItem value="other">Other</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
               <Grid item xs={12} md={2}>
+                <FormControl fullWidth>
+                  <InputLabel>Department</InputLabel>
+                  <Select
+                    value={departmentFilter}
+                    label="Department"
+                    onChange={(e) => setDepartmentFilter(e.target.value)}
+                  >
+                    <MenuItem value="all">All Departments</MenuItem>
+                    <MenuItem value="administration">Administration</MenuItem>
+                    <MenuItem value="academics">Academics</MenuItem>
+                    <MenuItem value="student-affairs">Student Affairs</MenuItem>
+                    <MenuItem value="facilities">Facilities</MenuItem>
+                    <MenuItem value="it">IT</MenuItem>
+                    <MenuItem value="library">Library</MenuItem>
+                    <MenuItem value="security">Security</MenuItem>
+                    <MenuItem value="cafeteria">Cafeteria</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={1}>
                 <Button fullWidth variant="outlined" startIcon={<IconFilter />}>
                   More Filters
                 </Button>
@@ -374,7 +435,7 @@ const AllVisitors: React.FC = () => {
                 <TableRow>
                   <TableCell>Visitor</TableCell>
                   <TableCell>Contact</TableCell>
-                  <TableCell>Purpose</TableCell>
+                  <TableCell>Purpose & Department</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Check In</TableCell>
                   <TableCell>Check Out</TableCell>
@@ -382,7 +443,7 @@ const AllVisitors: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredVisitors.map((visitor) => (
+                {visitors.map((visitor) => (
                   <TableRow key={visitor._id}>
                     <TableCell>
                       <Box display="flex" alignItems="center" gap={2}>
@@ -410,9 +471,12 @@ const AllVisitors: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <Box>
-                        <Typography variant="body2">{visitor.purposeOfVisit}</Typography>
+                        <Typography variant="body2">
+                          {visitor.purposeOfVisit || 'General Visit'}
+                        </Typography>
                         <Typography variant="caption" color="textSecondary">
-                          Meeting: {visitor.personToMeet}
+                          Meeting: {visitor.personToMeet} •{' '}
+                          {visitor.department.replace('-', ' ').toUpperCase()}
                         </Typography>
                       </Box>
                     </TableCell>
@@ -420,7 +484,6 @@ const AllVisitors: React.FC = () => {
                       <Chip
                         label={visitor.status.replace('-', ' ').toUpperCase()}
                         color={getStatusColor(visitor.status) as any}
-                       
                       />
                     </TableCell>
                     <TableCell>
@@ -431,17 +494,64 @@ const AllVisitors: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <Box display="flex" gap={1}>
-                        <IconButton onClick={() => handleViewVisitor(visitor)}>
-                          <IconEye />
+                        <IconButton
+                          size="small"
+                          onClick={() => handleViewVisitor(visitor)}
+                          title="View Details"
+                        >
+                          <IconEye size={18} />
                         </IconButton>
-                        <IconButton>
-                          <IconQrcode />
+
+                        {/* Status-based action buttons */}
+                        {visitor.status === 'pending' &&
+                          (user?.role === 'admin' || user?.role === 'frontdesk') && (
+                            <>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleApprove(visitor._id)}
+                                title="Approve"
+                                color="success"
+                              >
+                                <IconCheck size={18} />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleReject(visitor._id, 'Rejected by staff')}
+                                title="Reject"
+                                color="error"
+                              >
+                                <IconX size={18} />
+                              </IconButton>
+                            </>
+                          )}
+
+                        {visitor.status === 'approved' &&
+                          (user?.role === 'admin' || user?.role === 'security') && (
+                            <Button
+                              size="small"
+                              variant="contained"
+                              onClick={() => handleCheckIn(visitor._id)}
+                              sx={{ minWidth: 'auto', px: 1 }}
+                            >
+                              Check In
+                            </Button>
+                          )}
+
+                        {visitor.status === 'checked-in' &&
+                          (user?.role === 'admin' || user?.role === 'security') && (
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => handleCheckOut(visitor._id)}
+                              sx={{ minWidth: 'auto', px: 1 }}
+                            >
+                              Check Out
+                            </Button>
+                          )}
+
+                        <IconButton size="small" title="Show QR Code">
+                          <IconQrcode size={18} />
                         </IconButton>
-                        {(user?.role === 'admin' || user?.role === 'security') && (
-                          <IconButton>
-                            <IconEdit />
-                          </IconButton>
-                        )}
                       </Box>
                     </TableCell>
                   </TableRow>
@@ -522,7 +632,6 @@ const AllVisitors: React.FC = () => {
                     <Chip
                       label={selectedVisitor.status.replace('-', ' ').toUpperCase()}
                       color={getStatusColor(selectedVisitor.status) as any}
-                     
                     />
                   </Box>
                   <Box mb={2}>
